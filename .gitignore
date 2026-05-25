@@ -1,0 +1,10 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Keep books.json (pre-populated data) but ignore the genre cache
+genre_cache.json
