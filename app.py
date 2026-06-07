@@ -287,6 +287,11 @@ def db_get_books(user_id: str) -> list:
     r = get_sb().table("books").select("*").eq("user_id", user_id).execute()
     return r.data or []
 
+def db_get_existing_books(user_id: str) -> dict:
+    """Returns {goodreads_id: row} for all books already stored for this user."""
+    r = get_sb().table("books").select("goodreads_id,subjects,primary_genre").eq("user_id", user_id).execute()
+    return {row["goodreads_id"]: row for row in (r.data or [])}
+
 def resolve_user(identifier: str) -> dict | None:
     """Resolve either a numeric user_id or a slug to a user record."""
     if re.match(r"^\d+$", identifier):
@@ -330,19 +335,34 @@ def run_sync(user_id: str, profile_url: str):
 
         sync_jobs[user_id]["phase"] = "genres"
 
-        # Enrich genres in-memory then batch save
-        for i, book in enumerate(all_books):
-            book["subjects"]      = fetch_subjects(book["isbn"], book["title"], book["author"])
-            book["primary_genre"] = assign_primary_genre(book["subjects"])
-            sync_jobs[user_id]["progress"] = i + 1
-            time.sleep(0.6)
+        # Only enrich genres for books not already in DB
+        existing = db_get_existing_books(user_id)
+        new_books = [b for b in all_books if b["id"] not in existing]
+        sync_jobs[user_id]["total"] = len(new_books)
+
+        enriched = 0
+        for book in all_books:
+            if book["id"] in existing:
+                book["subjects"]      = existing[book["id"]]["subjects"] or []
+                book["primary_genre"] = existing[book["id"]]["primary_genre"] or ""
+            else:
+                book["subjects"]      = fetch_subjects(book["isbn"], book["title"], book["author"])
+                book["primary_genre"] = assign_primary_genre(book["subjects"])
+                enriched += 1
+                sync_jobs[user_id]["progress"] = enriched
+                time.sleep(0.6)
 
         # Final save with genres
         sync_jobs[user_id]["phase"] = "saving"
         db_upsert_books(user_id, all_books)
         db_upsert_user(user_id, username, profile_url, len(all_books), slug)
 
-        sync_jobs[user_id] = {"status": "done", "total": len(all_books), "slug": slug}
+        sync_jobs[user_id] = {
+            "status":    "done",
+            "total":     len(all_books),
+            "new_count": len(new_books),
+            "slug":      slug,
+        }
 
     except Exception as e:
         print(f"Sync error for {user_id}: {e}")

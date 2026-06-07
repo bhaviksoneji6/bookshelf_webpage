@@ -453,9 +453,21 @@ function showToast(msg, type = 'success') {
 ═══════════════════════════════════════════════════════════════ */
 let syncPollTimer = null;
 
+function updateSyncOverlay(title, msg, pct, label) {
+  const titleEl = $('syncOverlayTitle');
+  const msgEl   = $('syncOverlayMsg');
+  const fillEl  = $('syncProgressFill');
+  const labelEl = $('syncProgressLabel');
+  if (titleEl) titleEl.textContent = title;
+  if (msgEl)   msgEl.textContent   = msg;
+  if (fillEl)  fillEl.style.width  = `${pct}%`;
+  if (labelEl) labelEl.textContent = label;
+}
+
 async function syncLibrary() {
   if (!SLUG) return;
   syncBtn.classList.add('syncing');
+  updateSyncOverlay('Syncing Library', 'Connecting to Goodreads…', 5, '');
   syncOverlay.classList.add('active');
 
   try {
@@ -487,10 +499,15 @@ function pollSyncStatus() {
       const data = await res.json();
 
       if (data.status === 'done') {
-        syncBtn.classList.remove('syncing');
-        syncOverlay.classList.remove('active');
-        await loadBooks(false);
-        showToast(`Library synced — ${data.total} books loaded`, 'success');
+        const newCount = data.new_count || 0;
+        const label    = newCount > 0 ? `${newCount} new book${newCount > 1 ? 's' : ''} added` : 'No new books found';
+        updateSyncOverlay('All done!', 'Your library is up to date', 100, label);
+        setTimeout(async () => {
+          syncBtn.classList.remove('syncing');
+          syncOverlay.classList.remove('active');
+          await loadBooks(false);
+          showToast(`Synced — ${data.total} books`, 'success');
+        }, 1000);
         return;
       }
       if (data.status === 'error') {
@@ -499,10 +516,31 @@ function pollSyncStatus() {
         showToast(`Sync failed: ${data.message || 'Unknown error'}`, 'error');
         return;
       }
-      // Still running — continue polling
+      if (data.status === 'running') {
+        const phase    = data.phase    || 'fetching';
+        const progress = data.progress || 0;
+        const total    = data.total    || 0;
+
+        if (phase === 'fetching') {
+          updateSyncOverlay('Fetching books…', 'Reading your Goodreads shelf', 15, '');
+        } else if (phase === 'saving') {
+          updateSyncOverlay('Saving…', 'Storing your library', 35, '');
+        } else if (phase === 'genres') {
+          if (total === 0) {
+            updateSyncOverlay('Almost done…', 'No new books to classify', 90, '');
+          } else {
+            const pct = Math.round(35 + (progress / total) * 60);
+            updateSyncOverlay(
+              'Classifying genres…',
+              'Looking up new books on Open Library',
+              pct,
+              `${progress} / ${total} new books`
+            );
+          }
+        }
+      }
       pollSyncStatus();
     } catch {
-      // Network hiccup — keep polling
       pollSyncStatus();
     }
   }, 3000);
