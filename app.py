@@ -255,7 +255,7 @@ def db_upsert_books(user_id: str, books: list):
 
     sb = get_sb()
     for i in range(0, len(records), 50):
-        sb.table("books").upsert(records[i:i + 50]).execute()
+        sb.table("books").upsert(records[i:i + 50], on_conflict="user_id,goodreads_id").execute()
 
 def db_get_user(user_id: str) -> dict | None:
     r = get_sb().table("users").select("*").eq("user_id", user_id).execute()
