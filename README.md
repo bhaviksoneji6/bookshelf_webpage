@@ -1,29 +1,18 @@
-# Bhavik's Bookshelf
+# Shelf — Goodreads Bookshelf Display
 
-Personal reading library pulled from Goodreads, hosted at **https://bookshelf-webpage.onrender.com**
+A universal web app that turns any public Goodreads profile into a beautiful, filterable bookshelf with a permanent shareable URL.
+
+**Live site:** https://bookshelf-webpage.onrender.com
 
 ---
 
-## Syncing new books
+## What it does
 
-When you've finished new books on Goodreads and want the website to reflect them:
-
-### Step 1 — Trigger a sync on the live site
-
-Go to **https://bookshelf-webpage.onrender.com** and click the **Sync Library** button in the top-right corner. This re-fetches your Goodreads shelf and updates genres. It takes 2–5 minutes depending on how many new books were added.
-
-### Step 2 — Save the update permanently
-
-Once the sync is done, run these commands locally to lock the new data into GitHub (so it survives server restarts and redeployments):
-
-```bash
-cd ~/Projects/books-webpage
-git add books.json
-git commit -m "sync library"
-git push
-```
-
-Render will automatically redeploy with the updated data.
+- Paste any public Goodreads profile URL on the landing page
+- The app fetches all books from the read shelf, classifies each into one of 12 genres via Open Library, and stores everything in Supabase
+- Each user gets a permanent shelf at `/shelf/your-name` (e.g. `/shelf/bhavik-soneji`)
+- Anyone can load an existing shelf by typing the username into the landing page
+- A Sync button on the shelf page re-fetches Goodreads and updates the library at any time
 
 ---
 
@@ -31,26 +20,56 @@ Render will automatically redeploy with the updated data.
 
 ```bash
 cd ~/Projects/books-webpage
+cp .env.example .env          # fill in SUPABASE_URL and SUPABASE_KEY
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 python3 app.py
 ```
 
-Then open **http://localhost:8080** in your browser.
+Open **http://localhost:8080** in your browser.
 
 ---
 
-## How the site works
+## Environment variables
 
-| File | Purpose |
+| Variable | Where to find it |
 |---|---|
-| `app.py` | Flask server — serves the page and handles Goodreads sync |
-| `books.json` | Your book data (committed to repo as the source of truth) |
-| `index.html` | Page structure |
-| `style.css` | All styles and animations |
-| `script.js` | Frontend logic — filters, 3D tilt, GSAP animations |
-| `genre_cache.json` | Local cache for Open Library genre lookups (not committed) |
+| `SUPABASE_URL` | Supabase → Settings → General → Project URL |
+| `SUPABASE_KEY` | Supabase → Settings → API Keys → Legacy anon key |
+
+On Render these are set under the service's **Environment** tab.
+
+---
+
+## Syncing new books
+
+1. Finish books on Goodreads (mark as read)
+2. Go to your shelf page — `bookshelf-webpage.onrender.com/shelf/bhavik-soneji`
+3. Click **Sync** in the top-right nav
+4. Wait ~2–5 minutes for the sync to complete (progress shown on screen)
+
+That's it. No code changes or deployments needed.
+
+---
+
+## Database setup (first time only)
+
+Run the contents of `schema.sql` in the Supabase SQL Editor. This creates the `users` and `books` tables. Choose **without RLS** when prompted — all DB access goes through the Flask backend, never directly from the browser.
+
+---
+
+## Deployment
+
+The app is hosted on [Render](https://render.com) (free tier) and configured via `render.yaml`. Render auto-deploys on every push to the `main` branch.
+
+**Start command:** `gunicorn app:app`
+
+---
 
 ## Notes
 
-- The live site on Render's free tier **sleeps after 15 min of inactivity** — the first visit after idle takes ~30 seconds to wake up.
-- Genres are fetched from [Open Library](https://openlibrary.org) — free, no API key needed.
-- Books without a recognised genre show no tag and will be retried on the next sync.
+- **Cold starts:** Render's free tier sleeps after 15 minutes of inactivity. The first visit after idle takes ~30 seconds to wake up.
+- **Goodreads shelf must be public:** The sync reads the Goodreads RSS feed, which requires the shelf to be set to public in Goodreads privacy settings.
+- **Genre classification:** Genres are fetched from [Open Library](https://openlibrary.org) — free, no API key needed. Books without a recognised genre show no tag and will be retried on the next sync.
+- **Sync timeout fix:** Syncing 100+ books takes 2–5 minutes. To avoid Render's 55-second HTTP timeout, syncs run in a background thread and the frontend polls for progress every 2.5 seconds.
