@@ -17,18 +17,24 @@
   gap: 0.45rem;
   padding: 0.5rem 1rem;
   background: transparent;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-gold);
   border-radius: 50px;
   color: var(--text2);
   font-size: 0.8rem;
   font-family: var(--sans);
+  cursor: pointer;
   transition: border-color 0.25s, color 0.25s, background 0.25s;
 }
 .nav-share-btn svg { width: 14px; height: 14px; }
 .nav-share-btn:hover {
-  border-color: var(--border-gold);
+  border-color: var(--gold);
   color: var(--gold-lt);
   background: var(--gold-dim);
+}
+.nav-share-btn.copied {
+  border-color: rgba(74, 222, 128, 0.5);
+  color: rgb(74, 222, 128);
+  background: rgba(74, 222, 128, 0.06);
 }
 
 /* ─── Landing hero ───────────────────────────────────────────── */
@@ -193,6 +199,91 @@
   animation: fadeUp 0.9s ease forwards 1.15s;
 }
 .l-hint.error-msg { color: var(--red); }
+
+/* ─── Or divider ─────────────────────────────────────────────── */
+.l-or-divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  max-width: 620px;
+  margin: 1.75rem 0 1.25rem;
+  opacity: 0;
+  animation: fadeUp 0.9s ease forwards 1.25s;
+}
+.l-or-divider::before,
+.l-or-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.l-or-divider span {
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+
+/* ─── Load existing shelf ────────────────────────────────────── */
+.l-existing-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 620px;
+  opacity: 0;
+  animation: fadeUp 0.9s ease forwards 1.35s;
+}
+.l-slug-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 60px;
+  overflow: hidden;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.l-slug-row:focus-within {
+  border-color: var(--border-gold);
+  box-shadow: 0 0 0 4px rgba(201,168,76,0.08);
+}
+.l-slug-prefix {
+  padding: 0 0 0 1.4rem;
+  font-size: 0.85rem;
+  color: var(--text3);
+  white-space: nowrap;
+  font-family: var(--sans);
+}
+.l-slug-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-family: var(--sans);
+  padding: 0.9rem 0.75rem;
+}
+.l-slug-input::placeholder { color: var(--text3); }
+.l-slug-btn {
+  display: flex;
+  align-items: center;
+  padding: 0.85rem 1.4rem;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--border);
+  color: var(--text2);
+  font-size: 0.85rem;
+  font-family: var(--sans);
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.2s, background 0.2s;
+  flex-shrink: 0;
+}
+.l-slug-btn:hover { color: var(--gold-lt); background: var(--gold-dim); }
 
 .l-scroll-hint {
   position: absolute;

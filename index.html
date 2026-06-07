@@ -54,6 +54,24 @@
         </button>
       </div>
       <p class="l-hint" id="inputHint">e.g. goodreads.com/user/show/168975936-your-name</p>
+
+      <!-- Already have a shelf -->
+      <div class="l-or-divider"><span>or</span></div>
+      <div class="l-existing-wrap" id="existingWrap">
+        <div class="l-slug-row" id="slugRow">
+          <span class="l-slug-prefix">shelf /</span>
+          <input
+            type="text"
+            class="l-slug-input"
+            id="slugInput"
+            placeholder="your-name"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button class="l-slug-btn" id="loadBtn">Load Shelf</button>
+        </div>
+        <p class="l-hint" id="slugHint">Already have a shelf? Enter your username</p>
+      </div>
     </div>
 
     <div class="l-scroll-hint">

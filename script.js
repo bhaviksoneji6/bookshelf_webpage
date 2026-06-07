@@ -1,5 +1,5 @@
-/* ─── User ID from URL path (/shelf/<user_id>) ───────────────── */
-const USER_ID = window.location.pathname.split('/').filter(Boolean)[1] || '';
+/* ─── Slug from URL path (/shelf/<slug>) ────────────────────── */
+const SLUG = window.location.pathname.split('/').filter(Boolean)[1] || '';
 
 /* ─── Fixed genre list (approved) ───────────────────────────── */
 const GENRES = [
@@ -454,12 +454,12 @@ function showToast(msg, type = 'success') {
 let syncPollTimer = null;
 
 async function syncLibrary() {
-  if (!USER_ID) return;
+  if (!SLUG) return;
   syncBtn.classList.add('syncing');
   syncOverlay.classList.add('active');
 
   try {
-    const res  = await fetch(`/api/sync/${USER_ID}`, { method: 'POST' });
+    const res  = await fetch(`/api/sync/${SLUG}`, { method: 'POST' });
     const data = await res.json();
     if (data.status === 'already_running') {
       pollSyncStatus();
@@ -483,7 +483,7 @@ function pollSyncStatus() {
   clearTimeout(syncPollTimer);
   syncPollTimer = setTimeout(async () => {
     try {
-      const res  = await fetch(`/api/sync-status/${USER_ID}`);
+      const res  = await fetch(`/api/sync-status/${SLUG}`);
       const data = await res.json();
 
       if (data.status === 'done') {
@@ -513,13 +513,23 @@ function pollSyncStatus() {
 ═══════════════════════════════════════════════════════════════ */
 function initShareBtn() {
   if (!shareBtn) return;
+  const icon  = document.getElementById('shareBtnIcon');
+  const label = document.getElementById('shareBtnLabel');
+  let resetTimer;
+
   shareBtn.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      showToast('Link copied to clipboard!', 'success');
-    } catch {
-      showToast('Copy: ' + window.location.href, 'success');
-    }
+    try { await navigator.clipboard.writeText(window.location.href); } catch {}
+
+    clearTimeout(resetTimer);
+    shareBtn.classList.add('copied');
+    icon.innerHTML = '<polyline points="20 6 9 17 4 12" stroke-width="2.5"/>';
+    label.textContent = 'Copied!';
+
+    resetTimer = setTimeout(() => {
+      shareBtn.classList.remove('copied');
+      icon.innerHTML = '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>';
+      label.textContent = 'Share';
+    }, 2000);
   });
 }
 
@@ -546,7 +556,7 @@ function hideSkeletons() {
 }
 
 async function loadBooks(skeleton = true) {
-  if (!USER_ID) {
+  if (!SLUG) {
     hideSkeletons();
     showToast('Invalid shelf URL', 'error');
     return;
@@ -554,7 +564,7 @@ async function loadBooks(skeleton = true) {
   if (skeleton) showSkeletons();
 
   try {
-    const res  = await fetch(`/api/books/${USER_ID}`);
+    const res  = await fetch(`/api/books/${SLUG}`);
     if (!res.ok) {
       hideSkeletons();
       showToast('Shelf not found', 'error');

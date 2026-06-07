@@ -116,8 +116,12 @@ function hideOverlay() {
 
 /* ─── Poll sync status ───────────────────────────────────────── */
 let pollTimer = null;
+let _pollUserId = '';
+let _pollSlug   = '';
 
-function pollStatus(userId) {
+function pollStatus(userId, slug) {
+  _pollUserId = userId;
+  _pollSlug   = slug;
   clearTimeout(pollTimer);
   pollTimer = setTimeout(async () => {
     try {
@@ -125,8 +129,9 @@ function pollStatus(userId) {
       const data = await res.json();
 
       if (data.status === 'done') {
+        const dest = data.slug || slug || userId;
         updateOverlay('All set!', 'Your shelf is ready.', 100, `${data.total} books loaded`);
-        setTimeout(() => { window.location.href = `/shelf/${userId}`; }, 800);
+        setTimeout(() => { window.location.href = `/shelf/${dest}`; }, 800);
         return;
       }
 
@@ -157,9 +162,9 @@ function pollStatus(userId) {
         }
       }
 
-      pollStatus(userId);
+      pollStatus(userId, slug);
     } catch {
-      pollStatus(userId);
+      pollStatus(userId, slug);
     }
   }, 2500);
 }
@@ -194,15 +199,15 @@ async function handleGenerate() {
     }
 
     if (data.status === 'exists') {
-      /* Already in DB — go straight to shelf */
+      const dest = data.slug || data.user_id;
       updateOverlay('Welcome back!', `Found ${data.total} books`, 100, 'Redirecting…');
-      setTimeout(() => { window.location.href = `/shelf/${data.user_id}`; }, 700);
+      setTimeout(() => { window.location.href = `/shelf/${dest}`; }, 700);
       return;
     }
 
     if (data.status === 'running' || data.status === 'started') {
       updateOverlay('Fetching your books…', 'Reading your Goodreads shelf', 10);
-      pollStatus(data.user_id);
+      pollStatus(data.user_id, data.slug || '');
       return;
     }
 
@@ -225,6 +230,37 @@ function initNavScroll() {
   }, { passive: true });
 }
 
+/* ─── Load existing shelf ────────────────────────────────────── */
+const slugInput = $('slugInput');
+const loadBtn   = $('loadBtn');
+const slugHint  = $('slugHint');
+
+async function handleLoad() {
+  const slug = slugInput.value.trim().toLowerCase().replace(/\s+/g, '-');
+  if (!slug) return;
+
+  loadBtn.disabled = true;
+  slugHint.textContent = 'Looking up your shelf…';
+  slugHint.classList.remove('error-msg');
+
+  try {
+    const res  = await fetch(`/api/check-slug/${encodeURIComponent(slug)}`);
+    const data = await res.json();
+
+    if (data.exists) {
+      window.location.href = `/shelf/${slug}`;
+    } else {
+      slugHint.textContent = 'Shelf not found. Check your username or build one above.';
+      slugHint.classList.add('error-msg');
+      loadBtn.disabled = false;
+    }
+  } catch {
+    slugHint.textContent = 'Connection error. Please try again.';
+    slugHint.classList.add('error-msg');
+    loadBtn.disabled = false;
+  }
+}
+
 /* ─── Init ───────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
   const canvas = $('particles-canvas');
@@ -233,12 +269,15 @@ document.addEventListener('DOMContentLoaded', () => {
   initNavScroll();
 
   generateBtn.addEventListener('click', handleGenerate);
-
-  urlInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') handleGenerate();
-  });
-
+  urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleGenerate(); });
   urlInput.addEventListener('input', () => {
     if (inputHint.classList.contains('error-msg')) clearError();
+  });
+
+  loadBtn.addEventListener('click', handleLoad);
+  slugInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleLoad(); });
+  slugInput.addEventListener('input', () => {
+    slugHint.textContent = 'Already have a shelf? Enter your username';
+    slugHint.classList.remove('error-msg');
   });
 });

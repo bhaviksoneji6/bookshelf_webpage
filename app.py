@@ -225,15 +225,33 @@ def parse_rss(xml_text: str) -> list:
         })
     return books
 
+# ── Slug helpers ───────────────────────────────────────────────────────────────
+def generate_slug(name_part: str, user_id: str) -> str:
+    base = re.sub(r"[^a-z0-9]+", "-", name_part.lower()).strip("-")
+    if not base or len(base) < 2:
+        base = f"user-{user_id[-4:]}"
+
+    # If slug is taken by a different user, append last 4 digits of user_id
+    try:
+        r = get_sb().table("users").select("user_id").eq("slug", base).execute()
+        if r.data and r.data[0]["user_id"] != user_id:
+            base = f"{base}-{user_id[-4:]}"
+    except Exception:
+        pass
+    return base
+
 # ── Supabase helpers ───────────────────────────────────────────────────────────
-def db_upsert_user(user_id: str, username: str, profile_url: str, total: int):
-    get_sb().table("users").upsert({
+def db_upsert_user(user_id: str, username: str, profile_url: str, total: int, slug: str = ""):
+    record = {
         "user_id":     user_id,
         "username":    username,
         "profile_url": profile_url,
         "total_books": total,
         "last_synced": datetime.now(timezone.utc).isoformat(),
-    }).execute()
+    }
+    if slug:
+        record["slug"] = slug
+    get_sb().table("users").upsert(record).execute()
 
 def db_upsert_books(user_id: str, books: list):
     records = [{
@@ -261,18 +279,30 @@ def db_get_user(user_id: str) -> dict | None:
     r = get_sb().table("users").select("*").eq("user_id", user_id).execute()
     return r.data[0] if r.data else None
 
+def db_get_user_by_slug(slug: str) -> dict | None:
+    r = get_sb().table("users").select("*").eq("slug", slug).execute()
+    return r.data[0] if r.data else None
+
 def db_get_books(user_id: str) -> list:
     r = get_sb().table("books").select("*").eq("user_id", user_id).execute()
     return r.data or []
+
+def resolve_user(identifier: str) -> dict | None:
+    """Resolve either a numeric user_id or a slug to a user record."""
+    if re.match(r"^\d+$", identifier):
+        return db_get_user(identifier)
+    return db_get_user_by_slug(identifier)
 
 # ── Background sync ────────────────────────────────────────────────────────────
 def run_sync(user_id: str, profile_url: str):
     try:
         sync_jobs[user_id] = {"status": "running", "phase": "fetching", "progress": 0, "total": 0}
 
-        # Extract display name from URL
+        # Extract name part from URL for slug and display name
         m = re.search(r"/user/show/\d+-(.+)$", profile_url)
-        username = m.group(1).replace("-", " ").title() if m else f"User {user_id}"
+        name_part = m.group(1) if m else ""
+        username  = name_part.replace("-", " ").title() if name_part else f"User {user_id}"
+        slug      = generate_slug(name_part if name_part else f"user-{user_id[-4:]}", user_id)
 
         # Fetch all pages from Goodreads RSS
         all_books = []
@@ -294,8 +324,8 @@ def run_sync(user_id: str, profile_url: str):
         sync_jobs[user_id]["total"] = len(all_books)
         sync_jobs[user_id]["phase"] = "saving"
 
-        # Save books immediately (no genres yet) so shelf loads fast
-        db_upsert_user(user_id, username, profile_url, len(all_books))
+        # Save immediately (no genres yet) so shelf loads fast
+        db_upsert_user(user_id, username, profile_url, len(all_books), slug)
         db_upsert_books(user_id, all_books)
 
         sync_jobs[user_id]["phase"] = "genres"
@@ -307,12 +337,12 @@ def run_sync(user_id: str, profile_url: str):
             sync_jobs[user_id]["progress"] = i + 1
             time.sleep(0.6)
 
-        # Final batch save with genres
+        # Final save with genres
         sync_jobs[user_id]["phase"] = "saving"
         db_upsert_books(user_id, all_books)
-        db_upsert_user(user_id, username, profile_url, len(all_books))
+        db_upsert_user(user_id, username, profile_url, len(all_books), slug)
 
-        sync_jobs[user_id] = {"status": "done", "total": len(all_books)}
+        sync_jobs[user_id] = {"status": "done", "total": len(all_books), "slug": slug}
 
     except Exception as e:
         print(f"Sync error for {user_id}: {e}")
@@ -323,8 +353,8 @@ def run_sync(user_id: str, profile_url: str):
 def landing():
     return send_from_directory(".", "index.html")
 
-@app.route("/shelf/<user_id>")
-def shelf(user_id):
+@app.route("/shelf/<slug>")
+def shelf(slug):
     return send_from_directory(".", "shelf.html")
 
 @app.route("/api/generate", methods=["POST"])
@@ -340,46 +370,65 @@ def api_generate():
 
     # Already syncing?
     if sync_jobs.get(user_id, {}).get("status") == "running":
-        return jsonify({"user_id": user_id, "status": "running"})
+        existing = db_get_user(user_id)
+        slug = existing.get("slug", "") if existing else ""
+        return jsonify({"user_id": user_id, "slug": slug, "status": "running"})
 
     # Already in DB?
     existing = db_get_user(user_id)
     if existing:
-        return jsonify({"user_id": user_id, "status": "exists",
-                        "total": existing["total_books"], "username": existing["username"]})
+        return jsonify({
+            "user_id":  user_id,
+            "slug":     existing.get("slug", ""),
+            "status":   "exists",
+            "total":    existing["total_books"],
+            "username": existing["username"],
+        })
 
     # Kick off background sync
     sync_jobs[user_id] = {"status": "running", "phase": "starting", "progress": 0, "total": 0}
     threading.Thread(target=run_sync, args=(user_id, url), daemon=True).start()
-    return jsonify({"user_id": user_id, "status": "started"})
+    return jsonify({"user_id": user_id, "slug": "", "status": "started"})
 
-@app.route("/api/sync-status/<user_id>")
-def api_sync_status(user_id):
+@app.route("/api/sync-status/<identifier>")
+def api_sync_status(identifier):
+    user = resolve_user(identifier)
+    user_id = user["user_id"] if user else identifier
     return jsonify(sync_jobs.get(user_id, {"status": "unknown"}))
 
-@app.route("/api/books/<user_id>")
-def api_books(user_id):
-    user  = db_get_user(user_id)
+@app.route("/api/books/<identifier>")
+def api_books(identifier):
+    user = resolve_user(identifier)
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "Shelf not found"}), 404
+    user_id = user["user_id"]
     books = db_get_books(user_id)
     return jsonify({
         "books":        books,
         "total":        len(books),
         "last_updated": user.get("last_synced"),
         "username":     user.get("username", ""),
+        "slug":         user.get("slug", ""),
     })
 
-@app.route("/api/sync/<user_id>", methods=["POST"])
-def api_sync(user_id):
-    user = db_get_user(user_id)
+@app.route("/api/sync/<identifier>", methods=["POST"])
+def api_sync(identifier):
+    user = resolve_user(identifier)
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "Shelf not found"}), 404
+    user_id = user["user_id"]
     if sync_jobs.get(user_id, {}).get("status") == "running":
         return jsonify({"status": "already_running"})
     sync_jobs[user_id] = {"status": "running", "phase": "starting", "progress": 0, "total": 0}
     threading.Thread(target=run_sync, args=(user_id, user["profile_url"]), daemon=True).start()
-    return jsonify({"status": "started"})
+    return jsonify({"status": "started", "user_id": user_id})
+
+@app.route("/api/check-slug/<slug>")
+def api_check_slug(slug):
+    user = db_get_user_by_slug(slug)
+    if not user:
+        return jsonify({"exists": False}), 404
+    return jsonify({"exists": True, "slug": slug, "username": user.get("username", "")})
 
 @app.route("/<path:filename>")
 def static_files(filename):
@@ -387,5 +436,5 @@ def static_files(filename):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
-    print(f"\n🚀 Server running at http://localhost:{port}\n")
+    print(f"\nServer running at http://localhost:{port}\n")
     app.run(debug=False, host="0.0.0.0", port=port)

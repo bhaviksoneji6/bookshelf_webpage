@@ -4,10 +4,13 @@ CREATE TABLE users (
   user_id      TEXT PRIMARY KEY,
   username     TEXT,
   profile_url  TEXT,
+  slug         TEXT UNIQUE,
   total_books  INTEGER DEFAULT 0,
   last_synced  TIMESTAMPTZ,
   created_at   TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE INDEX idx_users_slug ON users(slug);
 
 CREATE TABLE books (
   id             SERIAL PRIMARY KEY,
