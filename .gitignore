@@ -8,3 +8,4 @@ venv/
 
 # Keep books.json (pre-populated data) but ignore the genre cache
 genre_cache.json
+.DS_Store
