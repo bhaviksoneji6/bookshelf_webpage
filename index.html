@@ -3,184 +3,141 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bhavik's Library</title>
+  <title>Shelf — Your Goodreads, Beautifully Displayed</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Flip.min.js"></script>
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="landing.css" />
 </head>
 <body>
 
-  <!-- Background canvas -->
   <canvas id="particles-canvas"></canvas>
 
-  <!-- Navigation -->
+  <!-- Nav -->
   <nav class="nav" id="nav">
     <div class="nav-brand">
       <svg class="nav-logo" viewBox="0 0 24 24" fill="none">
         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
         <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="currentColor" stroke-width="1.5"/>
       </svg>
-      <span>Bhavik's Library</span>
-    </div>
-    <div class="nav-right">
-      <span class="last-updated" id="lastUpdated"></span>
-      <button class="sync-btn" id="syncBtn">
-        <svg class="sync-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M23 4v6h-6M1 20v-6h6"/>
-          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-        </svg>
-        Sync Library
-      </button>
+      Shelf
     </div>
   </nav>
 
   <!-- Hero -->
-  <section class="hero" id="hero">
-    <div class="hero-bg-text" aria-hidden="true">READ</div>
-    <div class="hero-content">
-      <div class="hero-eyebrow">— Personal Reading Journey —</div>
-      <h1 class="hero-title">
-        <span class="hero-line hero-line-1">My</span>
-        <span class="hero-line hero-line-2">Book<em>shelf</em></span>
+  <section class="l-hero">
+    <div class="l-hero-bg-text" aria-hidden="true">SHELF</div>
+    <div class="l-hero-content">
+      <div class="l-eyebrow">Powered by Goodreads · Free · No account needed</div>
+      <h1 class="l-title">
+        <span class="l-line l-line-1">Your Reading Life</span>
+        <span class="l-line l-line-2"><em>Beautifully Displayed</em></span>
       </h1>
-      <p class="hero-sub">Every page a world. Every book a life lived.</p>
+      <p class="l-sub">Paste your Goodreads profile URL and get a stunning, filterable bookshelf — with a shareable link, instantly.</p>
 
-      <div class="stats-row" id="statsRow">
-        <div class="stat-item">
-          <div class="stat-val" id="statTotal">—</div>
-          <div class="stat-key">Books Read</div>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <div class="stat-val" id="statYear">—</div>
-          <div class="stat-key">This Year</div>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <div class="stat-val" id="statGenres">—</div>
-          <div class="stat-key">Genres</div>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <div class="stat-val" id="statRating">—</div>
-          <div class="stat-key">Avg Rating</div>
-        </div>
+      <div class="l-input-wrap" id="inputWrap">
+        <input
+          type="url"
+          class="l-input"
+          id="urlInput"
+          placeholder="https://www.goodreads.com/user/show/..."
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button class="l-btn" id="generateBtn">
+          <span>Generate My Shelf</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </button>
       </div>
+      <p class="l-hint" id="inputHint">e.g. goodreads.com/user/show/168975936-your-name</p>
     </div>
 
-    <div class="hero-scroll">
+    <div class="l-scroll-hint">
       <div class="scroll-track"></div>
-      <span>Scroll to explore</span>
+      <span>How it works</span>
     </div>
   </section>
 
-  <!-- Filters -->
-  <div class="filters-bar" id="filtersBar">
-    <div class="filters-inner">
-      <div class="search-wrap">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-        </svg>
-        <input type="text" class="search-input" id="searchInput" placeholder="Search books or authors…" autocomplete="off" />
-        <button class="search-clear" id="searchClear" aria-label="Clear search">✕</button>
+  <!-- How it works -->
+  <section class="l-steps">
+    <h2 class="l-section-title">How it works</h2>
+    <div class="l-steps-grid">
+      <div class="l-step">
+        <div class="l-step-num">01</div>
+        <h3>Paste your URL</h3>
+        <p>Enter your public Goodreads profile URL. Your shelf must be set to public in Goodreads settings.</p>
       </div>
-
-      <div class="filter-pill-group">
-        <label class="filter-label">Year</label>
-        <select class="filter-select" id="yearFilter">
-          <option value="">All Years</option>
-        </select>
+      <div class="l-step-divider"></div>
+      <div class="l-step">
+        <div class="l-step-num">02</div>
+        <h3>We fetch your books</h3>
+        <p>We pull every book from your read shelf and automatically classify each one into a genre.</p>
       </div>
-
-      <div class="filter-pill-group">
-        <label class="filter-label">Sort</label>
-        <select class="filter-select" id="sortFilter">
-          <option value="year_read_desc">Recently Read</option>
-          <option value="year_read_asc">Oldest First</option>
-          <option value="rating_desc">Highest Rated</option>
-          <option value="rating_asc">Lowest Rated</option>
-          <option value="title_asc">A → Z</option>
-          <option value="title_desc">Z → A</option>
-        </select>
-      </div>
-
-      <div class="filter-pill-group genre-pill-group">
-        <label class="filter-label">Genre</label>
-        <div class="genre-chips-scroll" id="genreChips"></div>
-      </div>
-
-      <div class="filter-pill-group">
-        <label class="filter-label">Min Rating</label>
-        <div class="star-filter" id="starFilter"></div>
-      </div>
-
-      <button class="reset-btn" id="resetBtn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>
-        </svg>
-        Clear
-      </button>
-
-      <div class="results-badge">
-        <span id="resultCount">0</span> books
+      <div class="l-step-divider"></div>
+      <div class="l-step">
+        <div class="l-step-num">03</div>
+        <h3>Share your shelf</h3>
+        <p>Get a permanent URL unique to you. Share it — no login required to view.</p>
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- Books -->
-  <main class="books-section">
-    <!-- Skeleton -->
-    <div class="skeleton-grid" id="skeletonGrid">
-      <!-- JS injects skeletons -->
-    </div>
-
-    <!-- Grid -->
-    <div class="books-grid" id="booksGrid" style="display:none"></div>
-
-    <!-- Empty -->
-    <div class="empty-state" id="emptyState" style="display:none">
-      <div class="empty-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-        </svg>
+  <!-- Features -->
+  <section class="l-features">
+    <h2 class="l-section-title">What you get</h2>
+    <div class="l-features-grid">
+      <div class="l-feature">
+        <div class="l-feature-icon">✦</div>
+        <h4>Animated book cards</h4>
+        <p>3D tilt, shimmer, and smooth scroll animations on every card.</p>
       </div>
-      <h3 id="emptyTitle">No books found</h3>
-      <p id="emptyMsg">Try adjusting your filters</p>
-      <button class="empty-sync-btn" id="emptySyncBtn">Sync Library from Goodreads</button>
+      <div class="l-feature">
+        <div class="l-feature-icon">◈</div>
+        <h4>Smart filters</h4>
+        <p>Filter by genre, year read, and star rating. Search by title or author.</p>
+      </div>
+      <div class="l-feature">
+        <div class="l-feature-icon">◉</div>
+        <h4>Reading stats</h4>
+        <p>Total books, this year's count, genres explored, and your average rating.</p>
+      </div>
+      <div class="l-feature">
+        <div class="l-feature-icon">⬡</div>
+        <h4>Permanent link</h4>
+        <p>Your shelf lives at a unique URL forever. Sync anytime to pull in new books.</p>
+      </div>
     </div>
-  </main>
+  </section>
 
-  <!-- Modal -->
-  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modal" id="modal">
-      <button class="modal-close" id="modalClose" aria-label="Close">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M18 6L6 18M6 6l12 12"/>
-        </svg>
-      </button>
-      <div class="modal-inner" id="modalInner"></div>
-    </div>
-  </div>
+  <!-- Footer -->
+  <footer class="l-footer">
+    <p>Built with Goodreads &amp; Open Library · Your data stays yours</p>
+  </footer>
 
-  <!-- Sync overlay -->
-  <div class="sync-overlay" id="syncOverlay">
-    <div class="sync-card">
+  <!-- Progress overlay -->
+  <div class="l-overlay" id="progressOverlay">
+    <div class="l-overlay-card">
       <div class="sync-rings">
         <div class="ring ring-1"></div>
         <div class="ring ring-2"></div>
         <div class="ring ring-3"></div>
         <div class="ring-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
           </svg>
         </div>
       </div>
-      <h3>Syncing Library</h3>
-      <p>Fetching your books from Goodreads…<br>This may take a minute.</p>
+      <h3 id="overlayTitle">Fetching your books…</h3>
+      <p id="overlayMsg">Connecting to Goodreads</p>
+      <div class="l-progress-track">
+        <div class="l-progress-fill" id="progressFill"></div>
+      </div>
+      <p class="l-progress-label" id="progressLabel"></p>
     </div>
   </div>
 
@@ -190,6 +147,6 @@
     <span class="toast-msg" id="toastMsg"></span>
   </div>
 
-  <script src="script.js"></script>
+  <script src="landing.js"></script>
 </body>
 </html>

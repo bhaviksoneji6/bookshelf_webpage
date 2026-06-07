@@ -1,3 +1,6 @@
+/* ─── User ID from URL path (/shelf/<user_id>) ───────────────── */
+const USER_ID = window.location.pathname.split('/').filter(Boolean)[1] || '';
+
 /* ─── Fixed genre list (approved) ───────────────────────────── */
 const GENRES = [
   'Fantasy', 'Science Fiction', 'Mystery & Crime', 'Thriller & Suspense',
@@ -9,7 +12,7 @@ const GENRES = [
 const S = {
   all: [],
   filtered: [],
-  genre: '',        // single selected genre
+  genre: '',
   year: '',
   minRating: 0,
   query: '',
@@ -39,6 +42,7 @@ const modalClose   = $('modalClose');
 const modalInner   = $('modalInner');
 const syncOverlay  = $('syncOverlay');
 const toast        = $('toast');
+const shareBtn     = $('shareBtn');
 
 gsap.registerPlugin(ScrollTrigger, Flip);
 
@@ -183,7 +187,6 @@ function buildFilters(books) {
 }
 
 function selectGenre(g, chip) {
-  // Single-select: clicking the active genre deselects it
   if (S.genre === g) {
     S.genre = '';
     chip.classList.remove('active');
@@ -244,7 +247,7 @@ function renderBooks(books) {
   if (books.length === 0) {
     booksGrid.style.display = 'none';
     emptyState.style.display = 'flex';
-    const hasActiveFilters = S.query || S.year || S.genres.size || S.minRating;
+    const hasActiveFilters = S.query || S.year || S.genre || S.minRating;
     $('emptyTitle').textContent = hasActiveFilters ? 'No books match' : 'Library is empty';
     $('emptyMsg').textContent   = hasActiveFilters ? 'Try different filters' : 'Sync your Goodreads library to get started';
     return;
@@ -446,27 +449,78 @@ function showToast(msg, type = 'success') {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   SYNC
+   SYNC (background — polls /api/sync-status)
 ═══════════════════════════════════════════════════════════════ */
+let syncPollTimer = null;
+
 async function syncLibrary() {
+  if (!USER_ID) return;
   syncBtn.classList.add('syncing');
   syncOverlay.classList.add('active');
 
   try {
-    const res  = await fetch('/api/update', { method: 'POST' });
+    const res  = await fetch(`/api/sync/${USER_ID}`, { method: 'POST' });
     const data = await res.json();
-    if (data.status === 'success') {
-      await loadBooks(false);
-      showToast(`✓ Library synced — ${data.total} books loaded`, 'success');
+    if (data.status === 'already_running') {
+      pollSyncStatus();
+      return;
+    }
+    if (data.status === 'started') {
+      pollSyncStatus();
     } else {
-      showToast(`Sync failed: ${data.message}`, 'error');
+      showToast(`Sync failed: ${data.error || 'Unknown error'}`, 'error');
+      syncBtn.classList.remove('syncing');
+      syncOverlay.classList.remove('active');
     }
   } catch {
-    showToast('Connection error. Is the server running?', 'error');
-  } finally {
+    showToast('Connection error — could not start sync', 'error');
     syncBtn.classList.remove('syncing');
     syncOverlay.classList.remove('active');
   }
+}
+
+function pollSyncStatus() {
+  clearTimeout(syncPollTimer);
+  syncPollTimer = setTimeout(async () => {
+    try {
+      const res  = await fetch(`/api/sync-status/${USER_ID}`);
+      const data = await res.json();
+
+      if (data.status === 'done') {
+        syncBtn.classList.remove('syncing');
+        syncOverlay.classList.remove('active');
+        await loadBooks(false);
+        showToast(`Library synced — ${data.total} books loaded`, 'success');
+        return;
+      }
+      if (data.status === 'error') {
+        syncBtn.classList.remove('syncing');
+        syncOverlay.classList.remove('active');
+        showToast(`Sync failed: ${data.message || 'Unknown error'}`, 'error');
+        return;
+      }
+      // Still running — continue polling
+      pollSyncStatus();
+    } catch {
+      // Network hiccup — keep polling
+      pollSyncStatus();
+    }
+  }, 3000);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SHARE BUTTON
+═══════════════════════════════════════════════════════════════ */
+function initShareBtn() {
+  if (!shareBtn) return;
+  shareBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      showToast('Link copied to clipboard!', 'success');
+    } catch {
+      showToast('Copy: ' + window.location.href, 'success');
+    }
+  });
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -492,13 +546,31 @@ function hideSkeletons() {
 }
 
 async function loadBooks(skeleton = true) {
+  if (!USER_ID) {
+    hideSkeletons();
+    showToast('Invalid shelf URL', 'error');
+    return;
+  }
   if (skeleton) showSkeletons();
 
   try {
-    const res  = await fetch('/api/books');
+    const res  = await fetch(`/api/books/${USER_ID}`);
+    if (!res.ok) {
+      hideSkeletons();
+      showToast('Shelf not found', 'error');
+      return;
+    }
     const data = await res.json();
     S.all = data.books || [];
     S.lastUpdated = data.last_updated;
+
+    /* Inject username into nav and hero */
+    const username = data.username || 'My';
+    const navUsernameEl = $('navUsername');
+    const heroNameEl    = $('heroName');
+    if (navUsernameEl) navUsernameEl.textContent = `${username}'s Library`;
+    if (heroNameEl)    heroNameEl.textContent     = username + "'s";
+    document.title = `${username}'s Bookshelf`;
 
     if (S.lastUpdated && lastUpdEl) {
       const d = new Date(S.lastUpdated);
@@ -587,5 +659,6 @@ document.addEventListener('DOMContentLoaded', () => {
   new Particles($('particles-canvas'));
   playHeroEntrance();
   initEvents();
+  initShareBtn();
   loadBooks();
 });
