@@ -329,14 +329,14 @@ def run_sync(user_id: str, profile_url: str):
         sync_jobs[user_id]["total"] = len(all_books)
         sync_jobs[user_id]["phase"] = "saving"
 
+        # Snapshot existing books BEFORE saving so we know which are truly new
+        existing = db_get_existing_books(user_id)
+
         # Save immediately (no genres yet) so shelf loads fast
         db_upsert_user(user_id, username, profile_url, len(all_books), slug)
         db_upsert_books(user_id, all_books)
 
         sync_jobs[user_id]["phase"] = "genres"
-
-        # Only enrich genres for books not already in DB
-        existing = db_get_existing_books(user_id)
         new_books = [b for b in all_books if b["id"] not in existing]
         sync_jobs[user_id]["total"] = len(new_books)
 
